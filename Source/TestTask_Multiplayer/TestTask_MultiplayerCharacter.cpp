@@ -10,8 +10,14 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
+#include "C:\Users\Julis\Documents\Unreal Projects\TestTask_Multiplayer\Source\TestTask_Multiplayer\InteractableObjects\DraggableObject.h"
+
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
+
+class ADraggableObject; 
 
 //////////////////////////////////////////////////////////////////////////
 // ATestTask_MultiplayerCharacter
@@ -69,6 +75,13 @@ void ATestTask_MultiplayerCharacter::BeginPlay()
 	}
 }
 
+void ATestTask_MultiplayerCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	LineTrace();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
@@ -80,6 +93,14 @@ void ATestTask_MultiplayerCharacter::SetupPlayerInputComponent(UInputComponent* 
 		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+
+		//Teleportation 
+		EnhancedInputComponent->BindAction(TeleportAction, ETriggerEvent::Started , this, &ATestTask_MultiplayerCharacter::Teleport);
+
+
+		//DragDrop 
+		EnhancedInputComponent->BindAction(DragReleaseAction, ETriggerEvent::Started, this, &ATestTask_MultiplayerCharacter::DragObject);
+
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATestTask_MultiplayerCharacter::Move);
@@ -126,5 +147,68 @@ void ATestTask_MultiplayerCharacter::Look(const FInputActionValue& Value)
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
+	}
+}
+
+FVector End = FVector(0.0f, 0.0f, 0.0f); 
+
+void ATestTask_MultiplayerCharacter::Teleport(const FInputActionValue& Value)
+{
+	FVector TPLocation = End;
+
+	SetActorLocation(End); 
+
+	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Cyan, TEXT("The player has been teleported!")); 
+}
+
+
+
+
+void ATestTask_MultiplayerCharacter::LineTrace()
+{
+	
+	FVector Start = GetActorLocation();
+
+	FVector ForwardVector = FollowCamera->GetForwardVector() ;
+	End =  (ForwardVector * 1000.0f) + Start;
+
+	DrawDebugLine(GetWorld(), Start, End, FColor::Cyan, false, 0.0f, 0.0f, 2.0f);
+
+}
+
+
+void ATestTask_MultiplayerCharacter::DragObject(const FInputActionValue& Value)
+{
+	FHitResult OutHit;
+
+	FVector Start = GetActorLocation();
+
+
+	FVector ForwardVector = FollowCamera->GetForwardVector();
+	End = (ForwardVector * 1000.0f) + Start;
+
+	GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility);
+
+	if (OutHit.bBlockingHit == 1)
+	{
+		if (Cast<ADraggableObject>(OutHit.GetActor()))
+		{
+			ADraggableObject* CurrentDraggable = Cast<ADraggableObject>(OutHit.GetActor()); 
+ 			
+			
+			if (CurrentDraggable->bIsCurrentlyAttached == false)
+			{
+				OutHit.GetActor()->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Orange, TEXT("The object has been attached!")); 
+				CurrentDraggable->bIsCurrentlyAttached = true; 
+			}
+			else
+			{
+				OutHit.GetActor()->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Orange, TEXT("The object has been detached!"));
+
+			}
+		
+		}
 	}
 }
