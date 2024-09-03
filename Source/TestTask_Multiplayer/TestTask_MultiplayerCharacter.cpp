@@ -206,7 +206,7 @@ void ATestTask_MultiplayerCharacter::DragObject(const FInputActionValue& Value)
 			{
 				OutHit.GetActor()->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Orange, TEXT("The object has been detached!"));
-
+				CurrentDraggable->bIsCurrentlyAttached = false;
 			}
 		
 		}
